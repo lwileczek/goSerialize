@@ -16,6 +16,8 @@ I liked this benchmark of Deku vs. JSON by Primeagen: [YouTube Vid](https://www.
 But Deku appears to only be for Rust. 
 Let's see if we can create a similar benchmarking test (in Go :heart:).
 
+ - FBE Go code: https://github.com/chronoxor/FastBinaryEncoding/tree/master/projects/Go/benchmarks
+
 ### Why I wrote this
 I heard of MsgPack years ago in this [PyCon 2014 Vid](https://www.youtube.com/watch?v=7KnfGDajDQw) about avoiding Python Pickles.
 However, It seems like Protobufs are far more popular today. 
@@ -48,3 +50,5 @@ go run main.go -s 30
 
 ## ToDo
  - More on error groups: https://bostonc.dev/blog/go-errgroup
+ - Write classic go Benchmark code like: https://github.com/chronoxor/FastBinaryEncoding/tree/master/projects/Go/benchmarks
+ - Read about Gobs of data: https://go.dev/blog/gob Looks like a language specific encoding like a Python Pickle

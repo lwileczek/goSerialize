@@ -1,33 +1,27 @@
 package main
 
 import (
-	"errors"
-	"fmt"
-	"io"
-	"net/http"
-	"os"
+	"bufio"
+	"encoding/json"
+	"log"
 )
 
-//TODO: Handle data coming in, deserialize it, and send OK response
-func getRoot(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("got / request\n")
-	io.WriteString(w, "This is my website!\n")
-}
-func getHello(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("got /hello request\n")
-	io.WriteString(w, "Hello, HTTP!\n")
-}
-
-func serve() {
-	http.HandleFunc("/", getRoot)
-	http.HandleFunc("/hello", getHello)
-
-	fmt.Println("Starting HTTP server on http://localhost:3333/")
-	err := http.ListenAndServe(":3333", nil)
-	if errors.Is(err, http.ErrServerClosed) {
-		fmt.Printf("server closed\n")
-	} else if err != nil {
-		fmt.Printf("error starting server: %s\n", err)
-		os.Exit(1)
+// HandleJSON handles the "JSON" request. It decodes the received JSON encoded
+// data into a struct, and then returns text to indicate the successful transaction.
+func HandleJSON(rw *bufio.ReadWriter) {
+	var data Payload
+	dec := json.NewDecoder(rw)
+	err := dec.Decode(&data)
+	if err != nil {
+		log.Println("Error decoding JSON data:", err)
+		return
+	}
+	_, err = rw.WriteString("JSON: Successful Transaction.\n")
+	if err != nil {
+		log.Println("Cannot write to connection.\n", err)
+	}
+	err = rw.Flush()
+	if err != nil {
+		log.Println("Flush failed.", err)
 	}
 }

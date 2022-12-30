@@ -2,17 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"math/rand"
 	"sync"
 	"time"
 )
-
-//Serializer - A serializaiton format to be tested
-type Serializer struct {
-	Name  string
-	Queue chan Payload
-}
 
 // Should I make a more complex data type? Might be annoying with the serialization.
 
@@ -24,18 +19,34 @@ type Payload struct {
 	Boolean       bool
 	SomeFloat     float32
 	IntArray      []int
+	Chart         map[string]int8
 
 	SerializationMethod string //MsgPack, JSON, BSON, Protobuf, etc.
 
 }
 
+//Sender An interface built on top of Serializers
+//which indicates it'll also send data across the wire
+type Sender interface {
+	Send(p *Payload)
+}
+
+//Serializer - A serializaiton format to be tested
+type Serializer struct {
+	Name  string
+	Queue chan Payload
+	Count int
+}
+
+//TODO: Dynamically create and add Serializers
+//Lookup reflector for switch cases
 var (
 	jsonizer = Serializer{
 		Name:  "JSON",
 		Queue: make(chan Payload),
 	}
-	protobuffer = Serializer{
-		Name:  "Protobuf",
+	gobber = Serializer{
+		Name:  "GOB",
 		Queue: make(chan Payload),
 	}
 )
@@ -46,8 +57,8 @@ func main() {
 	flag.IntVar(&runtime, "t", 10, "The number of time, in seconds, the test will run for")
 	flag.IntVar(&queueSize, "s", 1, "The feeders queue capacity")
 	flag.Parse()
-	var cereals []Serializer = []Serializer{jsonizer, protobuffer}
-	dataCh := make(chan Payload, 4)
+	var cereals []Serializer = []Serializer{jsonizer, gobber}
+	dataCh := make(chan Payload, 3)
 	stopCh := make(chan bool)
 	var feedWg sync.WaitGroup
 	for fd := 0; fd < feeders; fd++ {
@@ -60,13 +71,19 @@ func main() {
 					return
 				default:
 				}
+				keyCount := rand.Intn(15)
+				hashmap := map[string]int8{}
+				for k := 0; k < keyCount; k++ {
+					hashmap[fmt.Sprintf("keyNum:%d", k)] = int8(rand.Intn(256))
+				}
 				data := Payload{
 					StringEntry:   "Can this be sent quickly?",
-					SmallInteger:  uint8(rand.Intn(255)),
+					SmallInteger:  uint8(rand.Intn(256)),
 					NormalInteger: rand.Int(),
 					Boolean:       true,
 					SomeFloat:     rand.Float32(),
 					IntArray:      rand.Perm(256),
+					Chart:         hashmap,
 				}
 				dataCh <- data
 			}
@@ -77,14 +94,14 @@ func main() {
 		wg.Add(1)
 		serializer := serializer // https://golang.org/doc/faq#closures_and_goroutines
 		go func() {
-			for range serializer.Queue {
+			for data := range serializer.Queue {
 				//Simulate work
 				time.Sleep(time.Millisecond * time.Duration(rand.Intn(700)))
 			}
 			wg.Done()
 		}()
 	}
-	var jsonCount, protoCount int
+	var jsonCount, gobCount int
 	//Dynamic Select Statements: https://stackoverflow.com/questions/19992334/how-to-listen-to-n-channels-dynamic-select-statement#answer-19992525
 	go func() {
 		for dat := range dataCh {

@@ -2,20 +2,20 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
+	"encoding/gob"
 	"log"
 	"strings"
 )
 
-//JSONSerializer - A structure to represent our JSON Serializer
-type JSONSerializer struct {
+//GOBSerializer - A structure to represent our JSON Serializer
+type GOBSerializer struct {
 	Serializer
 }
 
 //Send - Serialize and send data through a network connection
-func (js *JSONSerializer) Send(p *Payload, rw *bufio.ReadWriter) {
-	rw.WriteByte('j')
-	enc := json.NewEncoder(rw)
+func (g *GOBSerializer) Send(p *Payload, rw *bufio.ReadWriter) {
+	rw.WriteByte('g')
+	enc := gob.NewEncoder(rw)
 	err := enc.Encode(p)
 	if err != nil {
 		log.Println(err, "Encode failed for struct: %#v", *p)
@@ -34,6 +34,6 @@ func (js *JSONSerializer) Send(p *Payload, rw *bufio.ReadWriter) {
 		return
 	}
 	if strings.Contains(response, "Success") {
-		js.Count++
+		g.Count++
 	}
 }

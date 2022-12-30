@@ -1,25 +1,13 @@
+# Simple TCP Server
+A simple example of a custom TCP server sending binary encoded data back and forth.
+Data is encoded using Go [Gobs](https://blog.golang.org/gobs-of-data) and sent
+to a custom server, which reads it, encodes it in JSON to pretty print, and returns
+a string "Successful transaction".
 
-Start server `go run server.go 9800`
-Start Client 
+## Why
+This demonstrates how to send data between two services via bytes over TCP.
 
-You can write to a connection and read data out of a connection
-with the following
-```go
-_, err = conn.Write([]byte("This is a message"))
-if err != nil {
-        println("Write data failed:", err.Error())
-            os.Exit(1)
-}
+## How to Use
+Start server `go run main.go client.go server.go`
 
-// buffer to get data
-received := make([]byte, 1024)
-_, err = conn.Read(received)
-if err != nil {
-        println("Read data failed:", err.Error())
-            os.Exit(1)
-}
-````
-
-
-## Custom TCP server with Serialization
-https://appliedgo.net/networking/
+The Loop runs five times and then waits for you to hit a key before exiting.

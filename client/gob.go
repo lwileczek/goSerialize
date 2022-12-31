@@ -2,9 +2,9 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/gob"
 	"log"
-	"strings"
 )
 
 //GOBSerializer - A structure to represent our JSON Serializer
@@ -27,13 +27,27 @@ func (g *GOBSerializer) Send(p *Payload, rw *bufio.ReadWriter) {
 		return
 	}
 
-	log.Println("Read the reply.")
-	response, err := rw.ReadString('\n')
+	//log.Println("Read the reply.")
+	response, err := rw.ReadBytes('\n')
 	if err != nil {
-		log.Println(err, "Client: Failed to read the reply: '"+response+"'")
+		log.Println(err, "Client: Failed to read the reply: '"+string(response)+"'")
 		return
 	}
-	if strings.Contains(response, "Success") {
+	//TODO: Replace with something I like more
+	if bytes.Contains(response, []byte("Success")) {
 		g.Count++
+	}
+}
+
+//Process incoming data and send it out to server. Keep count of requests
+func (g *GOBSerializer) Process() {
+	for data := range g.Queue {
+		rw, conn, err := OpenConn(g.Addr, g.Protocol)
+		if err != nil {
+			log.Fatal("Could not open a connection for GOB", err)
+		}
+		data.SerializationMethod = "GOB"
+		g.Send(&data, rw)
+		conn.Close()
 	}
 }

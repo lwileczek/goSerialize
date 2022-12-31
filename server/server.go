@@ -78,7 +78,7 @@ func (s *Server) handleRequest(conn net.Conn) {
 	handleCommand, ok := s.Handlers[encodingType]
 	s.Mtx.RUnlock()
 	if ok {
-		go handleCommand(rw)
+		handleCommand(rw)
 	}
 }
 

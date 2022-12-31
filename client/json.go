@@ -27,7 +27,7 @@ func (js *JSONSerializer) Send(p *Payload, rw *bufio.ReadWriter) {
 		return
 	}
 
-	log.Println("Read the reply.")
+	//log.Println("Read the reply.")
 	response, err := rw.ReadString('\n')
 	if err != nil {
 		log.Println(err, "Client: Failed to read the reply: '"+response+"'")
@@ -35,5 +35,19 @@ func (js *JSONSerializer) Send(p *Payload, rw *bufio.ReadWriter) {
 	}
 	if strings.Contains(response, "Success") {
 		js.Count++
+	}
+}
+
+//Process incoming data and send it out to server. Keep count of requests
+func (js *JSONSerializer) Process() {
+	//TODO: Maintaining a constant connection
+	for data := range js.Queue {
+		rw, conn, err := OpenConn(js.Addr, js.Protocol)
+		if err != nil {
+			log.Fatal("Could not open a connection for JSON", err)
+		}
+		data.SerializationMethod = "JSON"
+		js.Send(&data, rw)
+		conn.Close()
 	}
 }

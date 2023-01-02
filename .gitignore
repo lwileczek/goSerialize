@@ -5,8 +5,8 @@
 *.so
 *.dylib
 *.executor
-server
-client
+server/server
+client/client
 
 # Test binary, built with `go test -c`
 *.test

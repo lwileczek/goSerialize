@@ -7,7 +7,6 @@ import (
 	"log"
 	"math/rand"
 	"net"
-	"sync"
 	"time"
 )
 
@@ -106,58 +105,29 @@ func main() {
 	flag.StringVar(&protocol, "p", "tcp", "The connection protocol")
 	flag.IntVar(&runtime, "t", 10, "The number of time, in seconds, the test will run for")
 	flag.Parse()
-	var cereals []*Serializer = []*Serializer{
-		{
-			Name:          "JSON",
-			Protocol:      protocol,
-			Addr:          bindAddress,
-			encodeAndSend: JSONSend,
-			Count:         0,
-		},
-		{
-			Name:          "GOB",
-			Protocol:      protocol,
-			Addr:          bindAddress,
-			encodeAndSend: GOBSend,
-			Count:         0,
-		},
-		{
-			Name:          "MSGPACK",
-			Protocol:      protocol,
-			Addr:          bindAddress,
-			encodeAndSend: MsgPackSend,
-			Count:         0,
-		},
+	serializer := &Serializer{
+		Name:          "JSON",
+		Protocol:      protocol,
+		Addr:          bindAddress,
+		encodeAndSend: JSONSend,
+		Count:         0,
 	}
 	stopCh := make(chan struct{})
-	var wg sync.WaitGroup
-	for _, serializer := range cereals {
-		wg.Add(1)
-		serializer := serializer // https://golang.org/doc/faq#closures_and_goroutines
-		go func() {
-			for {
-				select {
-				case _, ok := <-stopCh:
-					if !ok {
-						wg.Done()
-						return
-					}
-				default:
-					data := serializer.DataGen()
-					rw, err := serializer.OpenConn()
-					if err != nil {
-						log.Fatal("Could not open a connection for JSON", err)
-					}
-					data.SerializationMethod = serializer.Name
-					success, err := serializer.encodeAndSend(&data, rw)
-					if success {
-						serializer.Count++
-					}
-					serializer.Connection.Close()
-				}
+	go func() {
+		for {
+			data := serializer.DataGen()
+			rw, err := serializer.OpenConn()
+			if err != nil {
+				log.Fatal("Could not open a connection", err)
 			}
-		}()
-	}
+			data.SerializationMethod = serializer.Name
+			success, err := serializer.encodeAndSend(&data, rw)
+			if success {
+				serializer.Count++
+			}
+			serializer.Connection.Close()
+		}
+	}()
 	// moderator
 	go func(t int) {
 		checkpoint := t / 5
@@ -171,10 +141,10 @@ func main() {
 		close(stopCh)
 	}(runtime)
 	log.Println("Waiting on final request")
-	wg.Wait()
 
+	<-stopCh
 	log.Println("Fin!")
-	Summarize(runtime, cereals)
+	Summarize(runtime, []*Serializer{serializer})
 }
 
 //Dynamic Select Statements: https://stackoverflow.com/questions/19992334/how-to-listen-to-n-channels-dynamic-select-statement#answer-19992525

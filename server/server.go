@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"sync"
+	"time"
 )
 
 //HandleFunc - A type to handle incoming data
@@ -13,10 +14,11 @@ type HandleFunc func(*bufio.ReadWriter)
 
 //Server - TCP server
 type Server struct {
-	ListenAddr string
-	Proto      string
-	Listener   net.Listener
-	Handlers   map[string]HandleFunc
+	ListenAddr    string
+	Proto         string
+	Listener      net.Listener
+	Handlers      map[string]HandleFunc
+	HandlerCounts map[string]*int
 
 	// Maps are not threadsafe, so we need a mutex to control access.
 	Mtx sync.RWMutex
@@ -24,8 +26,10 @@ type Server struct {
 
 //AddHandleFunc - Add a function which can be used to handle incoming requests
 func (s *Server) AddHandleFunc(name string, f HandleFunc) {
+	z := 0
 	s.Mtx.Lock()
 	s.Handlers[name] = f
+	s.HandlerCounts[name] = &z
 	s.Mtx.Unlock()
 }
 
@@ -37,6 +41,27 @@ func (s *Server) Start() error {
 	}
 	defer ln.Close()
 	s.Listener = ln
+	go func() {
+		var previous int
+		for {
+			requestCount := 0
+			time.Sleep(2 * time.Second)
+			s.Mtx.Lock()
+			for _, v := range s.HandlerCounts {
+				requestCount += *v
+			}
+			s.Mtx.Unlock()
+			if previous != requestCount {
+				s.Mtx.Lock()
+				for k, v := range s.HandlerCounts {
+					log.Printf("%s : %d", k, *v)
+				}
+				s.Mtx.Unlock()
+				log.Printf("\n\n")
+				previous = requestCount
+			}
+		}
+	}()
 	//Accept Loop
 	for {
 		//Listen Endlessly
@@ -79,15 +104,17 @@ func (s *Server) handleRequest(conn net.Conn) {
 	s.Mtx.RUnlock()
 	if ok {
 		handleCommand(rw)
+		*s.HandlerCounts[encodingType]++
 	}
 }
 
 //NewServer - A constructer for the server struct
 func NewServer(listenAddr string, proto string) *Server {
 	return &Server{
-		Proto:      proto,
-		ListenAddr: listenAddr,
-		Handlers:   make(map[string]HandleFunc),
+		Proto:         proto,
+		ListenAddr:    listenAddr,
+		Handlers:      make(map[string]HandleFunc),
+		HandlerCounts: make(map[string]*int),
 	}
 }
 

@@ -18,6 +18,8 @@ But Deku appears to only be for Rust, much like GOB for Go, and Pickle for Pytho
 The Repository for Fast Binary Encoding (FBE) wrote their own benchmark tests within their repository.
 Here are their tests written in Go: https://github.com/chronoxor/FastBinaryEncoding/tree/master/projects/Go/benchmarks
 
+[Alec Thomas: Serialization Benchmarks](https://github.com/alecthomas/go_serialization_benchmarks)
+
 
 ### Why I wrote this
 I recently saw the benchmarking video by Primeagen, mentioned above, which reminded me about MessagePack.

@@ -95,6 +95,8 @@ func (s *Server) handleRequest(conn net.Conn) {
 		encodingType = "GOB"
 	case 'j':
 		encodingType = "JSON"
+	case 'm':
+		encodingType = "MSGPACK"
 	default:
 		log.Printf("The first byte is %c which is not part of our known cases", data)
 		return
@@ -123,6 +125,7 @@ func RunServer(addr string, protocol string) error {
 	nvidiaDGX := NewServer(addr, protocol)
 	nvidiaDGX.AddHandleFunc("GOB", HandleGob)
 	nvidiaDGX.AddHandleFunc("JSON", HandleJSON)
+	nvidiaDGX.AddHandleFunc("MSGPACK", HandleMsgPack)
 
 	//Start listening.
 	return nvidiaDGX.Start()

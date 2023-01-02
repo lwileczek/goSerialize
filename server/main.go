@@ -4,17 +4,23 @@ import (
 	"log"
 )
 
-//Payload - the expected data structure from the client
-type Payload struct {
-	StringEntry   string
-	SmallInteger  uint8
-	NormalInteger int
-	Boolean       bool
-	SomeFloat     float32
-	IntArray      []int
-	Chart         map[string]int8
+type subStruct struct {
+	Cat     string `json:"cat"`
+	Feeling string `json:"feeling"`
+}
 
-	SerializationMethod string //MsgPack, JSON, BSON, Protobuf, etc.
+//Payload The endpoint is expecting to receive
+type Payload struct {
+	StringEntry   string          `json:"stringEntry"`
+	SmallInteger  uint8           `json:"smallInteger"`
+	NormalInteger int             `json:"normalInteger"`
+	Boolean       bool            `json:"booleanVal"`
+	SomeFloat     float32         `json:"someFloat"`
+	IntArray      []int8          `json:"intArray"`
+	Chart         map[string]int8 `json:"chart"`
+	SubShop       subStruct       `json:"subShop"`
+
+	SerializationMethod string `json:"serializationMethod"` //MsgPack, JSON, BSON, Protobuf, etc.
 
 }
 

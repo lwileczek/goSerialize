@@ -41,11 +41,13 @@ func (s *Server) Start() error {
 	}
 	defer ln.Close()
 	s.Listener = ln
+	//Check if requests are coming in
+	//TODO: Remove or add cli options around this
 	go func() {
 		var previous int
 		for {
 			requestCount := 0
-			time.Sleep(2 * time.Second)
+			time.Sleep(30 * time.Second)
 			s.Mtx.Lock()
 			for _, v := range s.HandlerCounts {
 				requestCount += *v

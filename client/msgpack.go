@@ -3,13 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"github/lwileczek/goBenchmarkSerialization/types"
 	"log"
 
 	"github.com/vmihailenco/msgpack/v5"
 )
 
 //MsgPackSend - Encode using MessagePack and send data over the wire
-func MsgPackSend(p *Payload, rw *bufio.ReadWriter) (bool, error) {
+func MsgPackSend(p *types.Payload, rw *bufio.ReadWriter) (bool, error) {
 	rw.WriteByte('m')
 	enc := msgpack.NewEncoder(rw)
 	err := enc.Encode(p)

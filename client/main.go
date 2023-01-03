@@ -1,131 +1,59 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
+	"github/lwileczek/goBenchmarkSerialization/types"
 	"log"
 	"math/rand"
 	"net"
+	"os"
 	"sync"
 	"time"
+
+	"google.golang.org/protobuf/proto"
 )
-
-// Should I make a more complex data type? Might be annoying with the serialization.
-type subStruct struct {
-	Cat     string `json:"cat"`
-	Feeling string `json:"feeling"`
-}
-
-//Payload How we will be sending the data to the server
-type Payload struct {
-	StringEntry   string          `json:"stringEntry"`
-	SmallInteger  uint8           `json:"smallInteger"`
-	NormalInteger int             `json:"normalInteger"`
-	Boolean       bool            `json:"booleanVal"`
-	SomeFloat     float32         `json:"someFloat"`
-	IntArray      []int8          `json:"intArray"`
-	Chart         map[string]int8 `json:"chart"`
-	SubShop       subStruct       `json:"subShop"`
-
-	SerializationMethod string `json:"serializationMethod"` //MsgPack, JSON, BSON, Protobuf, etc.
-
-}
-
-type encodeAndSend func(p *Payload, rw *bufio.ReadWriter) (bool, error)
-
-//Serializer - A serializaiton format to be tested
-type Serializer struct {
-	Name          string
-	Protocol      string
-	Addr          string
-	Count         int
-	Connection    net.Conn
-	encodeAndSend encodeAndSend
-}
-
-//DataGen - Generate a single payload to be serialized and transmitted
-func (s *Serializer) DataGen() Payload {
-	keyCount := rand.Intn(15)
-	hashmap := map[string]int8{}
-	for k := 0; k < keyCount; k++ {
-		hashmap[fmt.Sprintf("keyNum:%d", k)] = int8(rand.Intn(256))
-	}
-	intArry := rand.Perm(rand.Intn(256))
-	int8Arry := make([]int8, len(intArry))
-	for j := 0; j < len(intArry); j++ {
-		int8Arry[j] = int8(intArry[j])
-	}
-
-	data := Payload{
-		StringEntry:   "Can this be sent quickly?",
-		SmallInteger:  uint8(rand.Intn(256)),
-		NormalInteger: rand.Int(),
-		Boolean:       true,
-		SomeFloat:     rand.Float32(),
-		IntArray:      int8Arry,
-		Chart:         hashmap,
-		SubShop: subStruct{
-			Cat:     "Maine Coon",
-			Feeling: "Joy",
-		},
-	}
-	return data
-}
-
-// OpenConn connects to a PROTO [tcp] Address.
-// It returns a connection armed with a timeout and wrapped into a
-// buffered ReadWriter.
-//TODO: probably don't need to return the RW or Conn but attatch to instance
-func (s *Serializer) OpenConn() (*bufio.ReadWriter, error) {
-	conn, err := net.Dial(s.Protocol, s.Addr)
-	if err != nil {
-		log.Println(err, " Dialing "+s.Addr+" failed")
-		return nil, err
-	}
-	//log.Println("Connected to the server!!")
-	s.Connection = conn
-	return bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn)), nil
-}
 
 //Summarize the result of the run
 //TODO: Add more summary output
-func Summarize(time int, serializers []*Serializer) {
+func Summarize(time int, serializers []*types.Serializer) {
 	floatTime := float64(time)
 	for _, s := range serializers {
-		fmt.Printf("Summary Statistics for: %s\n", s.Name)
+		fmt.Fprintf(os.Stdout, "Summary Statistics for: \t\033[0;37m%s\033[0m\n", s.Name)
 		fmt.Printf("%d requests made in %d seconds\n", s.Count, time)
-		fmt.Printf("%.2f requests per second\n", float64(s.Count)/floatTime)
+		fmt.Printf("%.2f requests per second\n\n", float64(s.Count)/floatTime)
 	}
 }
 
 func main() {
 	var runtime int
-	var protocol, bindAddress string
-	flag.StringVar(&bindAddress, "a", "127.0.0.1:8900", "The Bind Address")
+	var protocol, bindAddress, bindPort string
+	flag.StringVar(&bindAddress, "a", "127.0.0.1", "The Bind Address")
+	flag.StringVar(&bindPort, "port", "8900", "The Bind Address")
 	flag.StringVar(&protocol, "p", "tcp", "The connection protocol")
 	flag.IntVar(&runtime, "t", 10, "The number of time, in seconds, the test will run for")
 	flag.Parse()
-	var cereals []*Serializer = []*Serializer{
+	var cereals []*types.Serializer = []*types.Serializer{
 		{
 			Name:          "JSON",
 			Protocol:      protocol,
-			Addr:          bindAddress,
-			encodeAndSend: JSONSend,
+			Addr:          bindAddress + ":" + bindPort,
+			EncodeAndSend: JSONSend,
 			Count:         0,
 		},
 		{
 			Name:          "GOB",
 			Protocol:      protocol,
-			Addr:          bindAddress,
-			encodeAndSend: GOBSend,
+			Addr:          bindAddress + ":" + bindPort,
+			EncodeAndSend: GOBSend,
 			Count:         0,
 		},
 		{
 			Name:          "MSGPACK",
 			Protocol:      protocol,
-			Addr:          bindAddress,
-			encodeAndSend: MsgPackSend,
+			Addr:          bindAddress + ":" + bindPort,
+			EncodeAndSend: MsgPackSend,
 			Count:         0,
 		},
 	}
@@ -146,10 +74,10 @@ func main() {
 					data := serializer.DataGen()
 					rw, err := serializer.OpenConn()
 					if err != nil {
-						log.Fatal("Could not open a connection for JSON", err)
+						log.Fatal("Could not open a connection", err)
 					}
 					data.SerializationMethod = serializer.Name
-					success, err := serializer.encodeAndSend(&data, rw)
+					success, err := serializer.EncodeAndSend(&data, rw)
 					if success {
 						serializer.Count++
 					}
@@ -158,6 +86,76 @@ func main() {
 			}
 		}()
 	}
+	protoCh := make(chan int)
+	go func() {
+		protoCount := 0
+		conn, err := net.Dial(protocol, bindAddress+":"+bindPort)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		defer conn.Close()
+		for {
+			select {
+			case _, ok := <-stopCh:
+				if !ok {
+					protoCh <- protoCount
+					return
+				}
+			default:
+				keyCount := rand.Intn(15)
+				hashmap := map[string]int32{}
+				for k := 0; k < keyCount; k++ {
+					hashmap[fmt.Sprintf("keyNum:%d", k)] = int32(rand.Intn(256))
+				}
+				intArry := rand.Perm(rand.Intn(256))
+				int32Arry := make([]int32, len(intArry))
+				for j := 0; j < len(intArry); j++ {
+					int32Arry[j] = int32(intArry[j])
+				}
+
+				data := types.PbPayload{
+					StringEntry:   "Can this be sent quickly?",
+					SmallInteger:  uint32(rand.Intn(256)),
+					NormalInteger: int64(rand.Int()),
+					Boolean:       true,
+					SomeFloat:     rand.Float32(),
+					IntArray:      int32Arry,
+					Chart:         hashmap,
+					SubShop: &types.SubStruct{
+						Cat:     "Maine Coon",
+						Feeling: "Joy",
+					},
+					SerializationMethod: "Protobuf",
+				}
+				//https://pkg.go.dev/google.golang.org/protobuf/proto
+				byteData, err := proto.Marshal(&data)
+				if err != nil {
+					log.Fatal("Error Marshalling data", err)
+				}
+				log.Println(byteData)
+				conn.Write(byteData)
+				b := make([]byte, 1024)
+				_, err = conn.Read(b)
+				if err != nil {
+					log.Println("Error Reading Response from protobuf")
+				}
+				if bytes.Contains(b, []byte("Success")) {
+					protoCount++
+				}
+				//rw, err := serializer.OpenConn()
+				//if err != nil {
+				//	log.Fatal("Could not open a connection for JSON", err)
+				//}
+				//data.SerializationMethod = serializer.Name
+				//success, err := serializer.encodeAndSend(&data, rw)
+				//if success {
+				//	serializer.Count++
+				//}
+				//serializer.Connection.Close()
+			}
+		}
+	}()
 	// moderator
 	go func(t int) {
 		checkpoint := t / 5
@@ -175,6 +173,11 @@ func main() {
 
 	log.Println("Fin!")
 	Summarize(runtime, cereals)
+
+	protoResults := <-protoCh
+	fmt.Fprintf(os.Stdout, "Summary Statistics for: \t\033[0;37m%s\033[0m\n", "Protobuf")
+	fmt.Printf("%d requests made in %d seconds\n", protoResults, runtime)
+	fmt.Printf("%.2f requests per second\n\n", float64(protoResults)/float64(runtime))
 }
 
 //Dynamic Select Statements: https://stackoverflow.com/questions/19992334/how-to-listen-to-n-channels-dynamic-select-statement#answer-19992525

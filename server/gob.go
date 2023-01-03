@@ -3,13 +3,14 @@ package main
 import (
 	"bufio"
 	"encoding/gob"
+	"github/lwileczek/goBenchmarkSerialization/types"
 	"log"
 )
 
 // HandleGob handles the "GOB" request. It decodes the received GOB data
 // into a struct, and then returns text to indicate the successful transaction.
 func HandleGob(rw *bufio.ReadWriter) {
-	var data Payload
+	var data types.Payload
 	dec := gob.NewDecoder(rw)
 	err := dec.Decode(&data)
 	if err != nil {

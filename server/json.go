@@ -3,13 +3,14 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"github/lwileczek/goBenchmarkSerialization/types"
 	"log"
 )
 
 // HandleJSON handles the "JSON" request. It decodes the received JSON encoded
 // data into a struct, and then returns text to indicate the successful transaction.
 func HandleJSON(rw *bufio.ReadWriter) {
-	var data Payload
+	var data types.Payload
 	dec := json.NewDecoder(rw)
 	err := dec.Decode(&data)
 	if err != nil {

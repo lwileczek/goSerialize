@@ -1,13 +1,11 @@
-package main
+package types
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 	"net"
-	"time"
 )
 
 // Should I make a more complex data type? Might be annoying with the serialization.
@@ -40,7 +38,7 @@ type Serializer struct {
 	Addr          string
 	Count         int
 	Connection    net.Conn
-	encodeAndSend encodeAndSend
+	EncodeAndSend encodeAndSend
 }
 
 //DataGen - Generate a single payload to be serialized and transmitted
@@ -86,65 +84,3 @@ func (s *Serializer) OpenConn() (*bufio.ReadWriter, error) {
 	s.Connection = conn
 	return bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn)), nil
 }
-
-//Summarize the result of the run
-//TODO: Add more summary output
-func Summarize(time int, serializers []*Serializer) {
-	floatTime := float64(time)
-	for _, s := range serializers {
-		fmt.Printf("Summary Statistics for: %s\n", s.Name)
-		fmt.Printf("%d requests made in %d seconds\n", s.Count, time)
-		fmt.Printf("%.2f requests per second\n", float64(s.Count)/floatTime)
-	}
-}
-
-func main() {
-	var runtime int
-	var protocol, bindAddress string
-	flag.StringVar(&bindAddress, "a", "127.0.0.1:8900", "The Bind Address")
-	flag.StringVar(&protocol, "p", "tcp", "The connection protocol")
-	flag.IntVar(&runtime, "t", 10, "The number of time, in seconds, the test will run for")
-	flag.Parse()
-	serializer := &Serializer{
-		Name:          "JSON",
-		Protocol:      protocol,
-		Addr:          bindAddress,
-		encodeAndSend: JSONSend,
-		Count:         0,
-	}
-	stopCh := make(chan struct{})
-	go func() {
-		for {
-			data := serializer.DataGen()
-			rw, err := serializer.OpenConn()
-			if err != nil {
-				log.Fatal("Could not open a connection", err)
-			}
-			data.SerializationMethod = serializer.Name
-			success, err := serializer.encodeAndSend(&data, rw)
-			if success {
-				serializer.Count++
-			}
-			serializer.Connection.Close()
-		}
-	}()
-	// moderator
-	go func(t int) {
-		checkpoint := t / 5
-		for w := 0; w < t; w++ {
-			if w%checkpoint == 0 {
-				log.Printf("(%d/%d) seconds complete, still working...\n", w, t)
-			}
-			time.Sleep(1 * time.Second)
-		}
-		log.Println("Stopping our feeders")
-		close(stopCh)
-	}(runtime)
-	log.Println("Waiting on final request")
-
-	<-stopCh
-	log.Println("Fin!")
-	Summarize(runtime, []*Serializer{serializer})
-}
-
-//Dynamic Select Statements: https://stackoverflow.com/questions/19992334/how-to-listen-to-n-channels-dynamic-select-statement#answer-19992525

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"github/lwileczek/goBenchmarkSerialization/types"
 	"log"
 
 	"github.com/vmihailenco/msgpack/v5"
@@ -9,7 +10,7 @@ import (
 
 //HandleMsgPack Reads binary data from buffer and decode it using message pack
 func HandleMsgPack(rw *bufio.ReadWriter) {
-	var data Payload
+	var data types.Payload
 	dec := msgpack.NewDecoder(rw)
 	err := dec.Decode(&data)
 	if err != nil {

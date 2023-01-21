@@ -72,6 +72,7 @@ func (s *Server) Start() error {
 			continue
 		}
 		go s.handleRequest(conn)
+		log.Println("New Connection")
 	}
 }
 

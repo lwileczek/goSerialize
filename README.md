@@ -35,7 +35,7 @@ I'd love to see how easy it is to use them and how big of a performance improvem
 | Protobuf | Popular |
 | GOB | Supposed to be easy within Go |
 | FBE | makes some __bold__ claims but doesn't seem popular so I am sceptical yet want to see the results |
-| msgpack | Supposed to be easy to work with, fast, and semi-legable |
+| MsgPack | Supposed to be easy to work with, fast, and semi-legable |
 
 #### Runner up types
 Another set of runner up data formats:
@@ -67,15 +67,3 @@ An example of each data type has been saved to file under the `data` directory.
 You can poke at the binary files with `hexdump -C example.<format> | less`
 To see how much of the data can be picked out of the binary files. 
 For JSON, you can just open the file since it's just a string.
-
-## ToDo
- - [ ] Add completion counter to client
- - [ ] Add completion counter to server
- - [ ] Add GOB
- - [ ] Add JSOB
- - [ ] Add BSOB
- - [ ] Add Totaltime or Waittime to serializer struct
- - More on error groups: https://bostonc.dev/blog/go-errgroup
- - Write classic go Benchmark code like: https://github.com/chronoxor/FastBinaryEncoding/tree/master/projects/Go/benchmarks
- - Read about Gobs of data: https://go.dev/blog/gob Looks like a language specific encoding like a Python Pickle
- - Save an example encoded struct and write to disk so you can physically see the size in bytes and how readable the data is

@@ -2,14 +2,17 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"github/lwileczek/goBenchmarkSerialization/types"
+	"io"
 	"log"
 	"math/rand"
 	"net"
 	"os"
 	"sync"
+	"syscall"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -37,7 +40,7 @@ func main() {
 	var cereals []*types.Serializer = []*types.Serializer{
 		{
 			Name:          "JSON",
-			Flag:          'j',
+			Flag:          "j",
 			Protocol:      protocol,
 			Addr:          bindAddress + ":" + bindPort,
 			EncodeAndSend: JSONSend,
@@ -45,7 +48,7 @@ func main() {
 		},
 		{
 			Name:          "GOB",
-			Flag:          'g',
+			Flag:          "g",
 			Protocol:      protocol,
 			Addr:          bindAddress + ":" + bindPort,
 			EncodeAndSend: GOBSend,
@@ -53,7 +56,7 @@ func main() {
 		},
 		{
 			Name:          "MSGPACK",
-			Flag:          'm',
+			Flag:          "m",
 			Protocol:      protocol,
 			Addr:          bindAddress + ":" + bindPort,
 			EncodeAndSend: MsgPackSend,
@@ -67,11 +70,11 @@ func main() {
 		serializer := serializer // https://golang.org/doc/faq#closures_and_goroutines
 		go func() {
 			rw, err := serializer.OpenConn()
-			rw.WriteByte(byte(serializer.Flag))
-			defer serializer.Connection.Close()
 			if err != nil {
 				log.Fatal("Could not open a connection", err)
 			}
+			defer serializer.Connection.Close()
+			serializer.Connection.Write([]byte(serializer.Flag)) // Init a connection with the server for this encoder type
 			for {
 				select {
 				case _, ok := <-stopCh:
@@ -84,8 +87,9 @@ func main() {
 					data.SerializationMethod = serializer.Name
 					success, err := serializer.EncodeAndSend(&data, rw)
 					if err != nil {
-						log.Println("Error: ", serializer.Name)
-						log.Fatal("Failed to encode and send data", err)
+						log.Printf("Error: %s\n", serializer.Name)
+						log.Println("Failed to encode and send data", err)
+						return //Maybe..?
 					}
 					if success {
 						serializer.Count++
@@ -142,12 +146,14 @@ func main() {
 				if err != nil {
 					log.Fatal("Error Marshalling data", err)
 				}
-				conn.Write([]byte("p"))
 				conn.Write(byteData)
 				b := make([]byte, 1024)
 				_, err = conn.Read(b)
 				if err != nil {
 					log.Println("Error Reading Response from protobuf")
+					if isNetConnClosedErr(err) {
+						return
+					}
 				}
 				if bytes.Contains(b, []byte("Success")) {
 					protoCount++
@@ -177,6 +183,18 @@ func main() {
 	fmt.Fprintf(os.Stdout, "Summary Statistics for: \t\033[0;37m%s\033[0m\n", "Protobuf")
 	fmt.Printf("%d requests made in %d seconds\n", protoResults, runtime)
 	fmt.Printf("%.2f requests per second\n\n", float64(protoResults)/float64(runtime))
+}
+
+func isNetConnClosedErr(err error) bool {
+	switch {
+	case
+		errors.Is(err, net.ErrClosed),
+		errors.Is(err, io.EOF),
+		errors.Is(err, syscall.EPIPE):
+		return true
+	default:
+		return false
+	}
 }
 
 //Dynamic Select Statements: https://stackoverflow.com/questions/19992334/how-to-listen-to-n-channels-dynamic-select-statement#answer-19992525

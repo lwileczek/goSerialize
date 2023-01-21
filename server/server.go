@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"io"
 	"log"
 	"net"
@@ -10,7 +9,7 @@ import (
 )
 
 //HandleFunc - A type to handle incoming data
-type HandleFunc func(*bufio.ReadWriter)
+type HandleFunc func(net.Conn)
 
 //Server - TCP server
 type Server struct {
@@ -78,9 +77,9 @@ func (s *Server) Start() error {
 
 //ReadData - read in the data from the request made
 func (s *Server) handleRequest(conn net.Conn) {
-	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+	data := make([]byte, 1)
 	defer conn.Close()
-	data, err := rw.ReadByte()
+	_, err := conn.Read(data)
 	switch err {
 	case nil:
 		break
@@ -88,17 +87,19 @@ func (s *Server) handleRequest(conn net.Conn) {
 		log.Println("Reached EOF - close this connection.\n   ---")
 		return
 	default:
-		log.Println("\nError reading first byte. Got: '"+string(data)+"'\n", err)
+		log.Printf("\nError reading first byte. Got: %s\n%s", data, err)
 		return
 	}
 	var encodingType string
-	switch data {
+	switch rune(data[0]) {
 	case 'g':
 		encodingType = "GOB"
 	case 'j':
 		encodingType = "JSON"
 	case 'm':
 		encodingType = "MSGPACK"
+	case 'p':
+		encodingType = "PROTOBUF"
 	default:
 		log.Printf("The first byte is %c which is not part of our known cases", data)
 		return
@@ -106,10 +107,11 @@ func (s *Server) handleRequest(conn net.Conn) {
 	s.Mtx.RLock()
 	handleCommand, ok := s.Handlers[encodingType]
 	s.Mtx.RUnlock()
-	if ok {
-		handleCommand(rw)
-		*s.HandlerCounts[encodingType]++
+	if !ok {
+		log.Printf("Could not find handler for %s", encodingType)
+		return
 	}
+	handleCommand(conn)
 }
 
 //NewServer - A constructer for the server struct
@@ -128,7 +130,7 @@ func RunServer(addr string, protocol string) error {
 	nvidiaDGX.AddHandleFunc("GOB", HandleGob)
 	nvidiaDGX.AddHandleFunc("JSON", HandleJSON)
 	nvidiaDGX.AddHandleFunc("MSGPACK", HandleMsgPack)
-
+	nvidiaDGX.AddHandleFunc("PROTOBUF", HandleProtobuf)
 	//Start listening.
 	return nvidiaDGX.Start()
 }

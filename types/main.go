@@ -34,7 +34,7 @@ type encodeAndSend func(p *Payload, rw *bufio.ReadWriter) (bool, error)
 //Serializer - A serializaiton format to be tested
 type Serializer struct {
 	Name          string
-	Flag          rune
+	Flag          string
 	Protocol      string
 	Addr          string
 	Count         int

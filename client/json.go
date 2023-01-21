@@ -10,7 +10,6 @@ import (
 
 //JSONSend - Encode using JSON and send data over the wire
 func JSONSend(p *types.Payload, rw *bufio.ReadWriter) (bool, error) {
-	rw.WriteByte('j')
 	enc := json.NewEncoder(rw)
 	err := enc.Encode(p)
 	if err != nil {

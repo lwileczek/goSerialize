@@ -37,6 +37,7 @@ func main() {
 	var cereals []*types.Serializer = []*types.Serializer{
 		{
 			Name:          "JSON",
+			Flag:          'j',
 			Protocol:      protocol,
 			Addr:          bindAddress + ":" + bindPort,
 			EncodeAndSend: JSONSend,
@@ -44,6 +45,7 @@ func main() {
 		},
 		{
 			Name:          "GOB",
+			Flag:          'g',
 			Protocol:      protocol,
 			Addr:          bindAddress + ":" + bindPort,
 			EncodeAndSend: GOBSend,
@@ -51,6 +53,7 @@ func main() {
 		},
 		{
 			Name:          "MSGPACK",
+			Flag:          'm',
 			Protocol:      protocol,
 			Addr:          bindAddress + ":" + bindPort,
 			EncodeAndSend: MsgPackSend,
@@ -63,6 +66,12 @@ func main() {
 		wg.Add(1)
 		serializer := serializer // https://golang.org/doc/faq#closures_and_goroutines
 		go func() {
+			rw, err := serializer.OpenConn()
+			rw.WriteByte(byte(serializer.Flag))
+			defer serializer.Connection.Close()
+			if err != nil {
+				log.Fatal("Could not open a connection", err)
+			}
 			for {
 				select {
 				case _, ok := <-stopCh:
@@ -72,16 +81,15 @@ func main() {
 					}
 				default:
 					data := serializer.DataGen()
-					rw, err := serializer.OpenConn()
-					if err != nil {
-						log.Fatal("Could not open a connection", err)
-					}
 					data.SerializationMethod = serializer.Name
 					success, err := serializer.EncodeAndSend(&data, rw)
+					if err != nil {
+						log.Println("Error: ", serializer.Name)
+						log.Fatal("Failed to encode and send data", err)
+					}
 					if success {
 						serializer.Count++
 					}
-					serializer.Connection.Close()
 				}
 			}
 		}()
@@ -95,6 +103,7 @@ func main() {
 			return
 		}
 		defer conn.Close()
+		conn.Write([]byte("p"))
 		for {
 			select {
 			case _, ok := <-stopCh:
@@ -133,7 +142,7 @@ func main() {
 				if err != nil {
 					log.Fatal("Error Marshalling data", err)
 				}
-				log.Println(byteData)
+				conn.Write([]byte("p"))
 				conn.Write(byteData)
 				b := make([]byte, 1024)
 				_, err = conn.Read(b)
@@ -143,16 +152,6 @@ func main() {
 				if bytes.Contains(b, []byte("Success")) {
 					protoCount++
 				}
-				//rw, err := serializer.OpenConn()
-				//if err != nil {
-				//	log.Fatal("Could not open a connection for JSON", err)
-				//}
-				//data.SerializationMethod = serializer.Name
-				//success, err := serializer.encodeAndSend(&data, rw)
-				//if success {
-				//	serializer.Count++
-				//}
-				//serializer.Connection.Close()
 			}
 		}
 	}()

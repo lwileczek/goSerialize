@@ -11,7 +11,6 @@ import (
 
 //MsgPackSend - Encode using MessagePack and send data over the wire
 func MsgPackSend(p *types.Payload, rw *bufio.ReadWriter) (bool, error) {
-	rw.WriteByte('m')
 	enc := msgpack.NewEncoder(rw)
 	err := enc.Encode(p)
 	if err != nil {

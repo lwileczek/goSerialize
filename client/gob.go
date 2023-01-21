@@ -10,7 +10,6 @@ import (
 
 //GOBSend - Serialize and send data through a network connection Via Go GOBs
 func GOBSend(p *types.Payload, rw *bufio.ReadWriter) (bool, error) {
-	rw.WriteByte('g')
 	enc := gob.NewEncoder(rw)
 	err := enc.Encode(p)
 	if err != nil {

@@ -1,56 +1,113 @@
-package main
+package files
+
+//package main
 
 import (
+	"bufio"
+	"encoding/gob"
+	"encoding/json"
 	"fmt"
+	"github/lwileczek/goBenchmarkSerialization/types"
 	"math/rand"
+	"os"
+
+	"github.com/vmihailenco/msgpack/v5"
+	"google.golang.org/protobuf/proto"
 )
-
-// Should I make a more complex data type? Might be annoying with the serialization.
-type subStruct struct {
-	Cat     string `json:"cat"`
-	Feeling string `json:"feeling"`
-}
-
-//Payload How we will be sending the data to the server
-type Payload struct {
-	StringEntry   string          `json:"stringEntry"`
-	SmallInteger  uint8           `json:"smallInteger"`
-	NormalInteger int             `json:"normalInteger"`
-	Boolean       bool            `json:"booleanVal"`
-	SomeFloat     float32         `json:"someFloat"`
-	IntArray      []int8          `json:"intArray"`
-	Chart         map[string]int8 `json:"chart"`
-	SubShop       subStruct       `json:"subShop"`
-
-	SerializationMethod string `json:"serializationMethod"` //MsgPack, JSON, BSON, Protobuf, etc.
-
-}
 
 func main() {
 	keyCount := rand.Intn(15)
-	hashmap := map[string]int8{}
+	hashmap := map[string]int32{}
 	for k := 0; k < keyCount; k++ {
-		hashmap[fmt.Sprintf("keyNum:%d", k)] = int8(rand.Intn(256))
+		hashmap[fmt.Sprintf("keyNum:%d", k)] = int32(rand.Intn(256))
 	}
 	intArry := rand.Perm(rand.Intn(256))
-	int8Arry := make([]int8, len(intArry))
+	int32Arry := make([]int32, len(intArry))
 	for j := 0; j < len(intArry); j++ {
-		int8Arry[j] = int8(intArry[j])
+		int32Arry[j] = int32(intArry[j])
 	}
 
-	data := Payload{
+	data := types.Payload{
 		StringEntry:   "Can this be sent quickly?",
-		SmallInteger:  uint8(rand.Intn(256)),
+		SmallInteger:  uint32(rand.Intn(256)),
 		NormalInteger: rand.Int(),
 		Boolean:       true,
 		SomeFloat:     rand.Float32(),
-		IntArray:      int8Arry,
+		IntArray:      int32Arry,
 		Chart:         hashmap,
-		SubShop: subStruct{
+		SubShop: types.SubStructEx{
 			Cat:     "Maine Coon",
 			Feeling: "Joy",
 		},
 	}
-	fmt.Println(data)
+	writeGOB(&data)
+	writeJSON(&data)
+	writeMsgPack(&data)
+	writeProtobuf(&data)
+}
 
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
+func writeGOB(data *types.Payload) {
+	f, err := os.Create("./data.gob.bin")
+	check(err)
+	defer f.Close()
+	w := bufio.NewWriter(f)
+	enc := gob.NewEncoder(w)
+	err = enc.Encode(data)
+	check(err)
+	w.Flush()
+}
+
+func writeJSON(data *types.Payload) {
+	f, err := os.Create("./data.json")
+	check(err)
+	defer f.Close()
+	w := bufio.NewWriter(f)
+	enc := json.NewEncoder(w)
+	err = enc.Encode(data)
+	check(err)
+	w.Flush()
+}
+
+func writeMsgPack(data *types.Payload) {
+	f, err := os.Create("./data.msgpack.bin")
+	check(err)
+	defer f.Close()
+	w := bufio.NewWriter(f)
+	enc := msgpack.NewEncoder(w)
+	err = enc.Encode(data)
+	check(err)
+	w.Flush()
+}
+
+func writeProtobuf(data *types.Payload) {
+	f, err := os.Create("./data.protobuf.bin")
+	check(err)
+	defer f.Close()
+
+	protoData := types.PbPayload{
+		StringEntry:   "Can this be sent quickly?",
+		SmallInteger:  uint32(data.SmallInteger),
+		NormalInteger: int64(data.NormalInteger),
+		Boolean:       true,
+		SomeFloat:     data.SomeFloat,
+		IntArray:      data.IntArray,
+		Chart:         data.Chart,
+		SubShop: &types.SubStruct{
+			Cat:     "Maine Coon",
+			Feeling: "Joy",
+		},
+		SerializationMethod: "Protobuf",
+	}
+	//https://pkg.go.dev/google.golang.org/protobuf/proto
+	byteData, err := proto.Marshal(&protoData)
+	check(err)
+	byteCount, err := f.Write(byteData)
+	check(err)
+	fmt.Printf("wrote %d bytes in protobuf\n", byteCount)
 }

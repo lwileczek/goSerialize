@@ -4,12 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"github/lwileczek/goBenchmarkSerialization/types"
 	"log"
 )
 
 //JSONSend - Encode using JSON and send data over the wire
-func JSONSend(p *Payload, rw *bufio.ReadWriter) (bool, error) {
-	rw.WriteByte('j')
+func JSONSend(p *types.Payload, rw *bufio.ReadWriter) (bool, error) {
 	enc := json.NewEncoder(rw)
 	err := enc.Encode(p)
 	if err != nil {

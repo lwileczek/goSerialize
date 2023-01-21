@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+option go_package = "./types";
+package ex;
+
+message SubStruct {
+    string Cat = 1;
+    string Feeling = 2;
+}
+
+message PbPayload {
+    string StringEntry = 1;
+    uint32 SmallInteger = 2;
+    int64 NormalInteger = 3;
+    bool Boolean = 4;
+    float SomeFloat = 5;
+    repeated int32 IntArray = 6;
+    map<string, int32> Chart = 7;
+    SubStruct SubShop = 8;
+    string SerializationMethod = 9;
+}

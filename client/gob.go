@@ -4,12 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/gob"
+	"github/lwileczek/goBenchmarkSerialization/types"
 	"log"
 )
 
 //GOBSend - Serialize and send data through a network connection Via Go GOBs
-func GOBSend(p *Payload, rw *bufio.ReadWriter) (bool, error) {
-	rw.WriteByte('g')
+func GOBSend(p *types.Payload, rw *bufio.ReadWriter) (bool, error) {
 	enc := gob.NewEncoder(rw)
 	err := enc.Encode(p)
 	if err != nil {

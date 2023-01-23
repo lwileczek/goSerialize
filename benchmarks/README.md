@@ -16,15 +16,15 @@ It's possible if I tried harder on the serializer size I could get it to perform
 #### Marshal
 | Test | Times Run | Time per Operation | Memory Used | Allocations made |
 |:--|---:|---:|---:|---:|
-|BenchmarkGOBMarshal         | 206593 |   6892 ns/op |  4272 B/op  |  67 allocs/op |
-|BenchmarkJSONMarshal        | 220186 |   4988 ns/op |  1632 B/op  |  12 allocs/op |
-|BenchmarkMsgPackMarshal     | 478756 |  11366 ns/op |  5717 B/op  |  31 allocs/op |
-|BenchmarkProtobufMarshal    | 749360 |   3581 ns/op |  1136 B/op  |  43 allocs/op |
+|BenchmarkGOBMarshal         | 206,593 |   6,892 ns/op |  4,272 B/op  |  67 allocs/op |
+|BenchmarkJSONMarshal        | 220,186 |   4,988 ns/op |  1,632 B/op  |  12 allocs/op |
+|BenchmarkMsgPackMarshal     | 478,756 |  11,366 ns/op |  5,717 B/op  |  31 allocs/op |
+|BenchmarkProtobufMarshal    | 749,360 |   3,581 ns/op |  1,136 B/op  |  43 allocs/op |
 
 #### Unmarshal
 | Test | Times Run | Time per Operation | Memory Used | Allocations made |
 |:--|---:|---:|---:|---:|
-|BenchmarkGOBUnmarshal       |  52029 |  22388 ns/op | 10965 B/op  | 284 allocs/op |
-|BenchmarkJSONUnmarshal      |  35520 |  30646 ns/op |  6576 B/op  | 236 allocs/op |
-|BenchmarkMsgPackUnmarshal   | 125197 |  15380 ns/op |  2968 B/op  |  32 allocs/op |
-|BenchmarkProtobufUnmarshal  | 391359 |   3529 ns/op |  1843 B/op  |  55 allocs/op |
+|BenchmarkGOBUnmarshal       |  52,029 |  22,388 ns/op | 10,965 B/op  | 284 allocs/op |
+|BenchmarkJSONUnmarshal      |  35,520 |  30,646 ns/op |  6,576 B/op  | 236 allocs/op |
+|BenchmarkMsgPackUnmarshal   | 125,197 |  15,380 ns/op |  2,968 B/op  |  32 allocs/op |
+|BenchmarkProtobufUnmarshal  | 391,359 |   3,529 ns/op |  1,843 B/op  |  55 allocs/op |

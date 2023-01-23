@@ -5,7 +5,6 @@ import (
 	"log"
 	"net"
 	"sync"
-	"time"
 )
 
 //HandleFunc - A type to handle incoming data
@@ -13,11 +12,10 @@ type HandleFunc func(net.Conn)
 
 //Server - TCP server
 type Server struct {
-	ListenAddr    string
-	Proto         string
-	Listener      net.Listener
-	Handlers      map[string]HandleFunc
-	HandlerCounts map[string]*int
+	ListenAddr string
+	Proto      string
+	Listener   net.Listener
+	Handlers   map[string]HandleFunc
 
 	// Maps are not threadsafe, so we need a mutex to control access.
 	Mtx sync.RWMutex
@@ -25,10 +23,8 @@ type Server struct {
 
 //AddHandleFunc - Add a function which can be used to handle incoming requests
 func (s *Server) AddHandleFunc(name string, f HandleFunc) {
-	z := 0
 	s.Mtx.Lock()
 	s.Handlers[name] = f
-	s.HandlerCounts[name] = &z
 	s.Mtx.Unlock()
 }
 
@@ -40,39 +36,14 @@ func (s *Server) Start() error {
 	}
 	defer ln.Close()
 	s.Listener = ln
-	//Check if requests are coming in
-	//TODO: Remove or add cli options around this
-	go func() {
-		var previous int
-		for {
-			requestCount := 0
-			time.Sleep(30 * time.Second)
-			s.Mtx.Lock()
-			for _, v := range s.HandlerCounts {
-				requestCount += *v
-			}
-			s.Mtx.Unlock()
-			if previous != requestCount {
-				s.Mtx.Lock()
-				for k, v := range s.HandlerCounts {
-					log.Printf("%s : %d", k, *v)
-				}
-				s.Mtx.Unlock()
-				log.Printf("\n\n")
-				previous = requestCount
-			}
-		}
-	}()
-	//Accept Loop
+	//Accept Loop: Listen Endlessly
 	for {
-		//Listen Endlessly
 		conn, err := s.Listener.Accept()
 		if err != nil {
 			log.Println("Error accepting connection\n", err)
 			continue
 		}
 		go s.handleRequest(conn)
-		log.Println("New Connection")
 	}
 }
 
@@ -118,20 +89,19 @@ func (s *Server) handleRequest(conn net.Conn) {
 //NewServer - A constructer for the server struct
 func NewServer(listenAddr string, proto string) *Server {
 	return &Server{
-		Proto:         proto,
-		ListenAddr:    listenAddr,
-		Handlers:      make(map[string]HandleFunc),
-		HandlerCounts: make(map[string]*int),
+		Proto:      proto,
+		ListenAddr: listenAddr,
+		Handlers:   make(map[string]HandleFunc),
 	}
 }
 
 //RunServer - Run the server code above and do the stuff
 func RunServer(addr string, protocol string) error {
-	nvidiaDGX := NewServer(addr, protocol)
-	nvidiaDGX.AddHandleFunc("GOB", HandleGob)
-	nvidiaDGX.AddHandleFunc("JSON", HandleJSON)
-	nvidiaDGX.AddHandleFunc("MSGPACK", HandleMsgPack)
-	nvidiaDGX.AddHandleFunc("PROTOBUF", HandleProtobuf)
+	youHaveBeenServed := NewServer(addr, protocol)
+	youHaveBeenServed.AddHandleFunc("GOB", HandleGob)
+	youHaveBeenServed.AddHandleFunc("JSON", HandleJSON)
+	youHaveBeenServed.AddHandleFunc("MSGPACK", HandleMsgPack)
+	youHaveBeenServed.AddHandleFunc("PROTOBUF", HandleProtobuf)
 	//Start listening.
-	return nvidiaDGX.Start()
+	return youHaveBeenServed.Start()
 }

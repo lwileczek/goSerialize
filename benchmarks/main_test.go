@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github/lwileczek/goBenchmarkSerialization/types"
+	"github/lwileczek/goBenchmarkSerialization/types/fbe"
+	fbeproto "github/lwileczek/goBenchmarkSerialization/types/proto"
 	"log"
 	"math/rand"
 	"testing"
@@ -45,6 +47,7 @@ func dataGen() types.Payload {
 //GOBMarshal how long it takes to encode data via gobs
 func BenchmarkGOBMarshal(b *testing.B) {
 	data := dataGen()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var buf bytes.Buffer
 		enc := gob.NewEncoder(&buf)
@@ -64,6 +67,7 @@ func BenchmarkGOBUnmarshal(b *testing.B) {
 	if err != nil {
 		panic(err)
 	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var obj types.Payload
 		err = gob.NewDecoder(bytes.NewReader(buf.Bytes())).Decode(&obj)
@@ -76,6 +80,7 @@ func BenchmarkGOBUnmarshal(b *testing.B) {
 //JSONMarshal how long it takes to encode data via jsons
 func BenchmarkJSONMarshal(b *testing.B) {
 	data := dataGen()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var buf bytes.Buffer
 		enc := json.NewEncoder(&buf)
@@ -95,6 +100,7 @@ func BenchmarkJSONUnmarshal(b *testing.B) {
 	if err != nil {
 		panic(err)
 	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var obj types.Payload
 		dec := json.NewDecoder(bytes.NewReader(buf.Bytes()))
@@ -108,6 +114,7 @@ func BenchmarkJSONUnmarshal(b *testing.B) {
 //MsgPackMarshal how long it takes to encode data via msgpacks
 func BenchmarkMsgPackMarshal(b *testing.B) {
 	data := dataGen()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var buf bytes.Buffer
 		enc := msgpack.NewEncoder(&buf)
@@ -127,6 +134,7 @@ func BenchmarkMsgPackUnmarshal(b *testing.B) {
 	if err != nil {
 		panic(err)
 	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var obj types.Payload
 		dec := msgpack.NewDecoder(bytes.NewReader(buf.Bytes()))
@@ -137,7 +145,7 @@ func BenchmarkMsgPackUnmarshal(b *testing.B) {
 	}
 }
 
-//ProtobufMarshal how long it takes to encode data via msgpacks
+//ProtobufMarshal how long it takes to encode data via Protobufs
 func BenchmarkProtobufMarshal(b *testing.B) {
 	data := dataGen()
 	protoData := types.PbPayload{
@@ -154,6 +162,7 @@ func BenchmarkProtobufMarshal(b *testing.B) {
 		},
 		SerializationMethod: "Protobuf",
 	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := proto.Marshal(&protoData)
 		if err != nil {
@@ -189,6 +198,7 @@ func BenchmarkProtobufUnmarshal(b *testing.B) {
 	if err != nil {
 		panic(err)
 	}
+	b.ResetTimer()
 	//https://pkg.go.dev/google.golang.org/protobuf/proto
 	for i := 0; i < b.N; i++ {
 		newStructObj := types.PbPayload{}
@@ -202,5 +212,26 @@ func BenchmarkProtobufUnmarshal(b *testing.B) {
 			log.Fatal(err)
 		}
 
+	}
+}
+
+//BenchmarkFBEMarshal how long it takes to encode data via Fast Binary Encoding FBE
+func BenchmarkFBEMarshal(b *testing.B) {
+	data := dataGen()
+	submarine := fbeproto.NewSubStructFromFieldValues("linux", "Spicy")
+	emptyPayload := fbeproto.NewPbPayloadFromFieldValues(data.StringEntry, int32(data.SmallInteger), int64(data.NormalInteger), "Fast Binary Encoding", true, data.SomeFloat, data.IntArray, data.Chart, *submarine)
+	buf := fbe.NewEmptyBuffer()
+	writer := fbeproto.NewPbPayloadModel(buf)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// Serialize the account to the FBE stream
+		if _, err := writer.Serialize(emptyPayload); err != nil {
+			fmt.Println("Error serializing the data", err)
+			panic("serialization error")
+		}
+		if ok := writer.Verify(); !ok {
+			panic("verify error")
+		}
 	}
 }

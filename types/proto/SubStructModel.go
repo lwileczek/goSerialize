@@ -8,38 +8,38 @@
 package proto
 
 import "errors"
-import "../fbe"
+import "github/lwileczek/goBenchmarkSerialization/types/fbe"
 
 // Workaround for Go unused imports issue
 var _ = errors.New
 var _ = fbe.Version
 
-// Fast Binary Encoding PbPayload model
-type PbPayloadModel struct {
+// Fast Binary Encoding SubStruct model
+type SubStructModel struct {
     // Model buffer
     buffer *fbe.Buffer
 
     // Field model
-    model *FieldModelPbPayload
+    model *FieldModelSubStruct
 }
 
-// Create a new PbPayload model
-func NewPbPayloadModel(buffer *fbe.Buffer) *PbPayloadModel {
-    return &PbPayloadModel{buffer: buffer, model: NewFieldModelPbPayload(buffer, 4)}
+// Create a new SubStruct model
+func NewSubStructModel(buffer *fbe.Buffer) *SubStructModel {
+    return &SubStructModel{buffer: buffer, model: NewFieldModelSubStruct(buffer, 4)}
 }
 
 // Get the model buffer
-func (m *PbPayloadModel) Buffer() *fbe.Buffer { return m.buffer }
+func (m *SubStructModel) Buffer() *fbe.Buffer { return m.buffer }
 // Get the field model
-func (m *PbPayloadModel) Model() *FieldModelPbPayload { return m.model }
+func (m *SubStructModel) Model() *FieldModelSubStruct { return m.model }
 
 // Get the model size
-func (m *PbPayloadModel) FBESize() int { return m.model.FBESize() + m.model.FBEExtra() }
+func (m *SubStructModel) FBESize() int { return m.model.FBESize() + m.model.FBEExtra() }
 // // Get the model type
-func (m *PbPayloadModel) FBEType() int { return m.model.FBEType() }
+func (m *SubStructModel) FBEType() int { return m.model.FBEType() }
 
 // Check if the struct value is valid
-func (m *PbPayloadModel) Verify() bool {
+func (m *SubStructModel) Verify() bool {
     if (m.buffer.Offset() + m.model.FBEOffset() - 4) > m.buffer.Size() {
         return false
     }
@@ -53,13 +53,13 @@ func (m *PbPayloadModel) Verify() bool {
 }
 
 // Create a new model (begin phase)
-func (m *PbPayloadModel) CreateBegin() int {
+func (m *SubStructModel) CreateBegin() int {
     fbeBegin := m.buffer.Allocate(4 + m.model.FBESize())
     return fbeBegin
 }
 
 // Create a new model (end phase)
-func (m *PbPayloadModel) CreateEnd(fbeBegin int) int {
+func (m *SubStructModel) CreateEnd(fbeBegin int) int {
     fbeEnd := m.buffer.Size()
     fbeFullSize := fbeEnd - fbeBegin
     fbe.WriteUInt32(m.buffer.Data(), m.buffer.Offset() + m.model.FBEOffset() - 4, uint32(fbeFullSize))
@@ -67,7 +67,7 @@ func (m *PbPayloadModel) CreateEnd(fbeBegin int) int {
 }
 
 // Serialize the struct value
-func (m *PbPayloadModel) Serialize(value *PbPayload) (int, error) {
+func (m *SubStructModel) Serialize(value *SubStruct) (int, error) {
     fbeBegin := m.CreateBegin()
     err := m.model.Set(value)
     fbeFullSize := m.CreateEnd(fbeBegin)
@@ -75,22 +75,22 @@ func (m *PbPayloadModel) Serialize(value *PbPayload) (int, error) {
 }
 
 // Deserialize the struct value
-func (m *PbPayloadModel) Deserialize() (*PbPayload, int, error) {
-    value := NewPbPayload()
+func (m *SubStructModel) Deserialize() (*SubStruct, int, error) {
+    value := NewSubStruct()
     fbeFullSize, err := m.DeserializeValue(value)
     return value, fbeFullSize, err
 }
 
 // Deserialize the struct value by the given pointer
-func (m *PbPayloadModel) DeserializeValue(value *PbPayload) (int, error) {
+func (m *SubStructModel) DeserializeValue(value *SubStruct) (int, error) {
     if (m.buffer.Offset() + m.model.FBEOffset() - 4) > m.buffer.Size() {
-        value = NewPbPayload()
+        value = NewSubStruct()
         return 0, nil
     }
 
     fbeFullSize := int(fbe.ReadUInt32(m.buffer.Data(), m.buffer.Offset() + m.model.FBEOffset() - 4))
     if fbeFullSize < m.model.FBESize() {
-        value = NewPbPayload()
+        value = NewSubStruct()
         return 0, errors.New("model is broken")
     }
 
@@ -99,6 +99,6 @@ func (m *PbPayloadModel) DeserializeValue(value *PbPayload) (int, error) {
 }
 
 // Move to the next struct value
-func (m *PbPayloadModel) Next(prev int) {
+func (m *SubStructModel) Next(prev int) {
     m.model.FBEShift(prev)
 }

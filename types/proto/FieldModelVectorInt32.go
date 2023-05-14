@@ -8,7 +8,7 @@
 package proto
 
 import "errors"
-import "../fbe"
+import "github/lwileczek/goBenchmarkSerialization/types/fbe"
 
 // Workaround for Go unused imports issue
 var _ = errors.New

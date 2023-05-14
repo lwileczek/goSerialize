@@ -1,0 +1,19 @@
+// Package declaration
+package proto
+
+struct SubStruct {
+    string Cat;
+    string Feeling;
+}
+
+struct PbPayload {
+    string StringEntry;
+    int32 SmallInteger;
+    int64 NormalInteger;
+    string SerializationMethod;
+    bool Boolean;
+    float SomeFloat;
+    int32[] IntArray;
+    string<int32> Chart;
+    SubStruct SubShop;
+}

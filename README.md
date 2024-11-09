@@ -1,13 +1,20 @@
-# Status
-Alpha
+# Goal
+Use different encoding methods to send data back and forth between a client
+and server over a long period of time to try and get a better simulated work
+example than using a local bench mark. 
 
-# Benchmark Serialization
+One of the benefits of using a binary format is that the data should be more
+compact and sending less data over the wire should result in better performance
+in the long term or where traffic is high.
+
+## Benchmark Serialization
 This is part of two projects to test the serialization and transfer
 of data between a client and server using the following formats:
 
  - [protobufs](https://developers.google.com/protocol-buffers/)
  - json
- - [bson](https://bsonspec.org/)
+ - [sonic/json](https://github.com/bytedance/sonic)
+ - [GOBs](https://go.dev/blog/gob) of data
  - [msgpack](https://msgpack.org/)
  - [FastBinaryEncoding (FBE)](https://github.com/chronoxor/FastBinaryEncoding)
 
@@ -31,42 +38,35 @@ I'd love to see how easy it is to use them and how big of a performance improvem
 | Encoding | Reason |
 |:---|:---|
 | JSON | The control / base case |
-| BSON | Seems like possibly an easy speed boost without having to try too much which may be worth it in its self |
+| Sonic/JSON | JSON is popular and you're going to use it. Does it have to be slow? |
 | Protobuf | Popular |
 | GOB | Supposed to be easy within Go |
 | FBE | makes some __bold__ claims but doesn't seem popular so I am sceptical yet want to see the results |
 | MsgPack | Supposed to be easy to work with, fast, and semi-legable |
 
-#### Runner up types
-Another set of runner up data formats:
- - ion
- - xml
- - Apache Thrift (No Go?)
-
 ## Running the Benchmark
-Start the server and run
+ 1. start the server `go run server/*`
+ 2. from the client directory run `go run main.go -t 30`
+
+For better results you can run the server on another machine, and tell the
+client how to connect to it 
 ```bash
-go run main.go -s 30
+go run ./client/*.go -a <ip-addr> -port <server-port> -t <time-in-seconds>
+
+# Example - run against a machine on your local network for 10 minutes
+go run ./client/*.go -a 192.158.15.3 -port 3000 -t 600 
 ```
-
-## Results
-
-|format | x | y | difficulty |
-|:---|---:|---:|:---:|
-|json | 1 | 2| :+1: |
-|bson | 1 | 2| :grin: |
-|protobufs| 1 | 2| :grimacing: |
-|msgpack| 1 | 2| :smirk: |
-|FastBinaryEncoding| 1 | 2| :sweat: |
-|gob| 1 | 2| :grin: |
-
-The emoji's are my subjective rating for how difficult each encoding was to work with.
 
 ### Poking at binary data
 An example of each data type has been saved to file under the `data` directory.
 You can poke at the binary files with `hexdump -C example.<format> | less`
 To see how much of the data can be picked out of the binary files. 
 For JSON, you can just open the file since it's just a string.
+
+## Results
+Overall, the data is really too small to tell what's best.
+You can look at some micro-benchmarks in [benchmarks](./benchmarks/README.md)
+for whatever that's worth.
 
 # On Micro-Benchmarks
 From one of the greats:

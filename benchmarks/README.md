@@ -9,22 +9,29 @@ cpu: Intel(R) Core(TM) i7-8569U CPU @ 2.80GHz
 ```
 
 ### Results
-GOBs seem to perform the worst with Protobufs performing the best.
-Although MesgPack uses a lot of memory and is slow to marshal, it is much faster unmarshalling compared to JSON.
-It's possible if I tried harder on the serializer size I could get it to perform better there.
+I don't think I'm doing FBE correctly. Any of the protobuff like things which make have a seperate
+constructor have magic in them that I did not inspect. There is a chance FBE Unmarshal is hella fast
+but also there is a chance it's just reading the same (last encoded value) out repeatedly
+
+If using JSON, [sonic](https://github.com/bytedance/sonic) does appear to provide a huge performance boost,
+as they suggest.
 
 #### Marshal
 | Test | Times Run | Time per Operation | Memory Used | Allocations made |
 |:--|---:|---:|---:|---:|
-|BenchmarkGOBMarshal         | 206,593 |   6,892 ns/op |  4,272 B/op  |  67 allocs/op |
-|BenchmarkJSONMarshal        | 220,186 |   4,988 ns/op |  1,632 B/op  |  12 allocs/op |
-|BenchmarkMsgPackMarshal     | 478,756 |  11,366 ns/op |  5,717 B/op  |  31 allocs/op |
-|BenchmarkProtobufMarshal    | 749,360 |   3,581 ns/op |  1,136 B/op  |  43 allocs/op |
+|BenchmarkGOB/Marshal-8	              | 425,778	     | 2,928 ns/op	    |1,183 B/op	      |14 allocs/op|
+|BenchmarkJSON/Marshal-8          	  | 244,279	     | 5,446 ns/op	    |3,219 B/op	      |15 allocs/op|
+|BenchmarkSonicJSON/Marshal-8     	  | 689,878	     | 2,238 ns/op	    |2,060 B/op	      | 3 allocs/op|
+|BenchmarkMsgPack/Marshal-8       	  | 181,344	     | 6,680 ns/op	    |3,043 B/op	      |14 allocs/op|
+|BenchmarkProtobuf/Marshal-8      	  | 215,881	     | 5,324 ns/op	    |  876 B/op	      |30 allocs/op|
+|BenchmarkFBE/Marshal-8           	  | 205,209	     | 5,028 ns/op	    |4,187 B/op	      |13 allocs/op|
 
 #### Unmarshal
 | Test | Times Run | Time per Operation | Memory Used | Allocations made |
 |:--|---:|---:|---:|---:|
-|BenchmarkGOBUnmarshal       |  52,029 |  22,388 ns/op | 10,965 B/op  | 284 allocs/op |
-|BenchmarkJSONUnmarshal      |  35,520 |  30,646 ns/op |  6,576 B/op  | 236 allocs/op |
-|BenchmarkMsgPackUnmarshal   | 125,197 |  15,380 ns/op |  2,968 B/op  |  32 allocs/op |
-|BenchmarkProtobufUnmarshal  | 391,359 |   3,529 ns/op |  1,843 B/op  |  55 allocs/op |
+|BenchmarkGOB/Unmarshal-8         	  | 311,762	     | 3,361 ns/op	    |1,733 B/op	      |20 allocs/op|
+|BenchmarkJSON/Unmarshal-8        	  |  55,278	     |20,527 ns/op	    |2,149 B/op	      |28 allocs/op|
+|BenchmarkSonicJSON/Unmarshal-8   	  | 274,930	     | 3,900 ns/op	    |2,715 B/op	      |11 allocs/op|
+|BenchmarkMsgPack/Unmarshal-8     	  | 107,505	     |10,412 ns/op	    |1,988 B/op	      |32 allocs/op|
+|BenchmarkProtobuf/Unmarshal-8    	  | 290,875	     | 4,467 ns/op	    |2,403 B/op	      |43 allocs/op|
+|BenchmarkFBE/Unmarshal-8         	  | 513,672	     | 2,149 ns/op	    |2,024 B/op	      |25 allocs/op|

@@ -5,16 +5,37 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"log"
+	"math/rand"
+	"os"
+	"testing"
+
 	"github/lwileczek/goBenchmarkSerialization/types"
 	"github/lwileczek/goBenchmarkSerialization/types/fbe"
 	fbeproto "github/lwileczek/goBenchmarkSerialization/types/proto"
-	"log"
-	"math/rand"
-	"testing"
 
+    "github.com/bytedance/sonic"
 	"github.com/vmihailenco/msgpack/v5"
 	"google.golang.org/protobuf/proto"
 )
+
+var data []types.Payload
+
+func setup() {
+	for i := 0; i < 1_000_000; i++ {
+		d := dataGen()
+		data = append(data, d)
+	}
+}
+
+func shutdown() {}
+
+func TestMain(m *testing.M) {
+	setup()
+	code := m.Run()
+	shutdown()
+	os.Exit(code)
+}
 
 func dataGen() types.Payload {
 	keyCount := rand.Intn(15)
@@ -22,216 +43,312 @@ func dataGen() types.Payload {
 	for k := 0; k < keyCount; k++ {
 		hashmap[fmt.Sprintf("keyNum:%d", k)] = int32(rand.Intn(256))
 	}
-	intArry := rand.Perm(rand.Intn(256))
+	intArry := rand.Perm(rand.Intn(256) + 1)
 	int32Arry := make([]int32, len(intArry))
 	for j := 0; j < len(intArry); j++ {
 		int32Arry[j] = int32(intArry[j])
 	}
 
+	cats := []string{
+		"Abyssinian",
+		"Aegean",
+		"American Bobtail",
+		"American Curl",
+		"American Ringtail",
+		"American Shorthair",
+		"American Wirehair",
+		"Aphrodite Giant",
+		"Arabian Mau",
+		"Asian",
+		"Asian Semi-longhair",
+		"Australian Mist",
+		"Balinese",
+		"Bambino",
+		"Bengal",
+		"Bombay",
+		"Brazilian Shorthair",
+		"British Longhair",
+		"British Shorthair",
+		"Burmese",
+		"Burmilla",
+		"California Spangled",
+		"Chantilly-Tiffany",
+		"Chartreux",
+		"Chausie",
+		"Colorpoint Shorthair",
+		"Cornish Rex",
+		"Cymric",
+		"Cyprus",
+		"Devon Rex",
+	}
+
+	feelings := []string{"Joy", "Happy", "Sad", "Hopeful", "Curious"}
+	r := rand.Float64()
 	data := types.Payload{
-		StringEntry:   "Can this be sent quickly?",
+		StringEntry:   fmt.Sprintf("Can this be sent quickly?%f", r),
 		SmallInteger:  uint32(rand.Intn(256)),
 		NormalInteger: rand.Int(),
-		Boolean:       true,
+		Boolean:       0.51 < rand.Float32(),
 		SomeFloat:     rand.Float32(),
 		IntArray:      int32Arry,
 		Chart:         hashmap,
 		SubShop: types.SubStructEx{
-			Cat:     "Maine Coon",
-			Feeling: "Joy",
+			Cat:     cats[rand.Intn(len(feelings))],
+			Feeling: feelings[rand.Intn(len(feelings))],
 		},
 	}
 	return data
 }
 
-//GOBMarshal how long it takes to encode data via gobs
-func BenchmarkGOBMarshal(b *testing.B) {
-	data := dataGen()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var buf bytes.Buffer
-		enc := gob.NewEncoder(&buf)
-		err := enc.Encode(data)
-		if err != nil {
-			panic(err)
-		}
-	}
-}
-
-//GOBUnmarshal Test how long to unmashral encoded data
-func BenchmarkGOBUnmarshal(b *testing.B) {
-	data := dataGen()
+func BenchmarkGOB(b *testing.B) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(data)
-	if err != nil {
-		panic(err)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var obj types.Payload
-		err = gob.NewDecoder(bytes.NewReader(buf.Bytes())).Decode(&obj)
-		if err != nil {
-			panic(err)
+	dec := gob.NewDecoder(&buf)
+	b.Run("Marshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var d types.Payload
+			switch {
+			case i < len(data):
+				d = data[i]
+			default:
+				d = dataGen()
+			}
+
+			err := enc.Encode(d)
+			if err != nil {
+				panic(err)
+			}
 		}
-	}
+	})
+
+	b.Run("Unmarshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var obj types.Payload
+			if err := dec.Decode(&obj); err != nil {
+				log.Println("could not decode object", err)
+				panic(err)
+			}
+		}
+	})
 }
 
-//JSONMarshal how long it takes to encode data via jsons
-func BenchmarkJSONMarshal(b *testing.B) {
-	data := dataGen()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var buf bytes.Buffer
-		enc := json.NewEncoder(&buf)
-		err := enc.Encode(data)
-		if err != nil {
-			panic(err)
-		}
-	}
-}
-
-//JSONUnmarshal Test how long to unmashral encoded data
-func BenchmarkJSONUnmarshal(b *testing.B) {
-	data := dataGen()
+func BenchmarkJSON(b *testing.B) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
-	err := enc.Encode(data)
-	if err != nil {
-		panic(err)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var obj types.Payload
-		dec := json.NewDecoder(bytes.NewReader(buf.Bytes()))
-		err = dec.Decode(&obj)
-		if err != nil {
-			panic(err)
+	dec := json.NewDecoder(&buf)
+	b.Run("Marshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var d types.Payload
+			switch {
+			case i < len(data):
+				d = data[i]
+			default:
+				d = dataGen()
+			}
+
+			err := enc.Encode(d)
+			if err != nil {
+				panic(err)
+			}
 		}
-	}
+	})
+
+	b.Run("Unmarshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var obj types.Payload
+			if err := dec.Decode(&obj); err != nil {
+				log.Println("could not decode object", err)
+				panic(err)
+			}
+		}
+	})
 }
 
-//MsgPackMarshal how long it takes to encode data via msgpacks
-func BenchmarkMsgPackMarshal(b *testing.B) {
-	data := dataGen()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var buf bytes.Buffer
-		enc := msgpack.NewEncoder(&buf)
-		err := enc.Encode(data)
-		if err != nil {
-			panic(err)
+func BenchmarkSonicJSON(b *testing.B) {
+	var buf bytes.Buffer
+	enc := sonic.ConfigDefault.NewEncoder(&buf)
+	dec := sonic.ConfigDefault.NewDecoder(&buf)
+	b.Run("Marshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var d types.Payload
+			switch {
+			case i < len(data):
+				d = data[i]
+			default:
+				d = dataGen()
+			}
+
+			err := enc.Encode(d)
+			if err != nil {
+				panic(err)
+			}
 		}
-	}
+	})
+
+	b.Run("Unmarshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var obj types.Payload
+			if err := dec.Decode(&obj); err != nil {
+				log.Println("could not decode object", err)
+				panic(err)
+			}
+		}
+	})
 }
 
-//MsgPackUnmarshal Test how long to unmashral encoded data
-func BenchmarkMsgPackUnmarshal(b *testing.B) {
-	data := dataGen()
+func BenchmarkMsgPack(b *testing.B) {
 	var buf bytes.Buffer
 	enc := msgpack.NewEncoder(&buf)
-	err := enc.Encode(data)
-	if err != nil {
-		panic(err)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var obj types.Payload
-		dec := msgpack.NewDecoder(bytes.NewReader(buf.Bytes()))
-		err = dec.Decode(&obj)
-		if err != nil {
-			panic(err)
+	dec := msgpack.NewDecoder(&buf)
+	b.Run("Marshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var d types.Payload
+			switch {
+			case i < len(data):
+				d = data[i]
+			default:
+				d = dataGen()
+			}
+			err := enc.Encode(d)
+			if err != nil {
+				panic(err)
+			}
 		}
-	}
+	})
+
+	b.Run("Unmarshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var obj types.Payload
+			if err := dec.Decode(&obj); err != nil {
+				log.Println("could not decode object", err)
+				panic(err)
+			}
+		}
+	})
 }
 
-//ProtobufMarshal how long it takes to encode data via Protobufs
-func BenchmarkProtobufMarshal(b *testing.B) {
-	data := dataGen()
-	protoData := types.PbPayload{
-		StringEntry:   "Can this be sent quickly?",
-		SmallInteger:  uint32(data.SmallInteger),
-		NormalInteger: int64(data.NormalInteger),
-		Boolean:       true,
-		SomeFloat:     data.SomeFloat,
-		IntArray:      data.IntArray,
-		Chart:         data.Chart,
-		SubShop: &types.SubStruct{
-			Cat:     "Maine Coon",
-			Feeling: "Joy",
-		},
-		SerializationMethod: "Protobuf",
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := proto.Marshal(&protoData)
-		if err != nil {
-			panic(err)
+func BenchmarkProtobuf(b *testing.B) {
+	paylaods := make([][]byte, 0, 600_000)
+	b.Run("Marshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var d types.Payload
+			switch {
+			case i < len(data):
+				d = data[i]
+			default:
+				d = dataGen()
+			}
+			protoData := types.PbPayload{
+				StringEntry:   d.StringEntry,
+				SmallInteger:  uint32(d.SmallInteger),
+				NormalInteger: int64(d.NormalInteger),
+				Boolean:       d.Boolean,
+				SomeFloat:     d.SomeFloat,
+				IntArray:      d.IntArray,
+				Chart:         d.Chart,
+				SubShop: &types.SubStruct{
+					Cat:     d.SubShop.Cat,
+					Feeling: d.SubShop.Feeling,
+				},
+				SerializationMethod: "Protobuf",
+			}
+			bitz, err := proto.Marshal(&protoData)
+			if err != nil {
+				panic(err)
+			}
+			b.StopTimer()
+			paylaods = append(paylaods, bitz)
+			b.StartTimer()
 		}
-	}
+	})
+
+	b.Run("Unmarshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var d []byte
+			switch {
+			case i < len(paylaods):
+				d = paylaods[i]
+			default:
+				b.StopTimer()
+				g := dataGen()
+				protoData := types.PbPayload{
+					StringEntry:   g.StringEntry,
+					SmallInteger:  uint32(g.SmallInteger),
+					NormalInteger: int64(g.NormalInteger),
+					Boolean:       g.Boolean,
+					SomeFloat:     g.SomeFloat,
+					IntArray:      g.IntArray,
+					Chart:         g.Chart,
+					SubShop: &types.SubStruct{
+						Cat:     "Maine Coon",
+						Feeling: "Joy",
+					},
+					SerializationMethod: "Protobuf",
+				}
+				foo, err := proto.Marshal(&protoData)
+				if err != nil {
+					panic(err)
+				}
+				b.StartTimer()
+				d = foo
+			}
+
+			newStructObj := types.PbPayload{}
+			err := proto.Unmarshal(d, &newStructObj)
+			if err != nil {
+				log.Println("Protobuf: Error Unmarshalling data")
+				log.Fatal(err)
+			}
+		}
+	})
 }
 
-//ProtobufUnmarshal Test how long to unmashral encoded data
-func BenchmarkProtobufUnmarshal(b *testing.B) {
-	data := dataGen()
-	var buf bytes.Buffer
-	enc := msgpack.NewEncoder(&buf)
-	err := enc.Encode(data)
-	if err != nil {
-		panic(err)
-	}
-	protoData := types.PbPayload{
-		StringEntry:   "Can this be sent quickly?",
-		SmallInteger:  uint32(data.SmallInteger),
-		NormalInteger: int64(data.NormalInteger),
-		Boolean:       true,
-		SomeFloat:     data.SomeFloat,
-		IntArray:      data.IntArray,
-		Chart:         data.Chart,
-		SubShop: &types.SubStruct{
-			Cat:     "Maine Coon",
-			Feeling: "Joy",
-		},
-		SerializationMethod: "Protobuf",
-	}
-	byteData, err := proto.Marshal(&protoData)
-	if err != nil {
-		panic(err)
-	}
-	b.ResetTimer()
-	//https://pkg.go.dev/google.golang.org/protobuf/proto
-	for i := 0; i < b.N; i++ {
-		newStructObj := types.PbPayload{}
-		if err != nil {
-			log.Println("Error Reading Response from protobuf", err)
-			return
-		}
-		err = proto.Unmarshal(byteData, &newStructObj)
-		if err != nil {
-			log.Println("Protobuf: Error Unmarshalling data")
-			log.Fatal(err)
-		}
-
-	}
-}
-
-//BenchmarkFBEMarshal how long it takes to encode data via Fast Binary Encoding FBE
-func BenchmarkFBEMarshal(b *testing.B) {
-	data := dataGen()
-	submarine := fbeproto.NewSubStructFromFieldValues("linux", "Spicy")
-	emptyPayload := fbeproto.NewPbPayloadFromFieldValues(data.StringEntry, int32(data.SmallInteger), int64(data.NormalInteger), "Fast Binary Encoding", true, data.SomeFloat, data.IntArray, data.Chart, *submarine)
+// BenchmarkFBEMarshal how long it takes to encode data via Fast Binary Encoding FBE
+func BenchmarkFBE(b *testing.B) {
 	buf := fbe.NewEmptyBuffer()
 	writer := fbeproto.NewPbPayloadModel(buf)
+	reader := fbeproto.NewPbPayloadModel(writer.Buffer())
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	b.Run("marshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			data := dataGen()
+			submarine := fbeproto.NewSubStructFromFieldValues("linux", "Spicy")
+			emptyPayload := fbeproto.NewPbPayloadFromFieldValues(data.StringEntry, int32(data.SmallInteger), int64(data.NormalInteger), "Fast Binary Encoding", true, data.SomeFloat, data.IntArray, data.Chart, *submarine)
+			// Serialize the account to the FBE stream
+			if _, err := writer.Serialize(emptyPayload); err != nil {
+				fmt.Println("Error serializing the data", err)
+				panic("serialization error")
+			}
+			if ok := writer.Verify(); !ok {
+				panic("verify fbe writer error")
+			}
+		}
+	})
+
+	for i := 0; i < 50_000; i++ {
+		data := dataGen()
+		submarine := fbeproto.NewSubStructFromFieldValues("linux", "Spicy")
+		emptyPayload := fbeproto.NewPbPayloadFromFieldValues(data.StringEntry, int32(data.SmallInteger), int64(data.NormalInteger), "Fast Binary Encoding", true, data.SomeFloat, data.IntArray, data.Chart, *submarine)
 		// Serialize the account to the FBE stream
 		if _, err := writer.Serialize(emptyPayload); err != nil {
 			fmt.Println("Error serializing the data", err)
 			panic("serialization error")
 		}
 		if ok := writer.Verify(); !ok {
-			panic("verify error")
+			panic("verify fbe writer error")
 		}
 	}
+
+	b.Run("Unmarshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if ok := reader.Verify(); !ok {
+				log.Println("The reader failed verification")
+				panic("verify reader error")
+			}
+			if _, _, err := reader.Deserialize(); err != nil {
+				log.Println(err)
+				panic("unmarshal fbe error")
+			}
+		}
+	})
 }
